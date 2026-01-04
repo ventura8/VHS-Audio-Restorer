@@ -1,0 +1,43 @@
+--extra-index-url https://download.pytorch.org/whl/nightly/cu128
+--pre
+
+# Core Framework & Utilities
+numpy
+scipy
+soundfile
+PyYAML
+tqdm
+
+# PyTorch (Nightly for RTX 50-series / high-end GPU support)
+torch
+torchvision
+torchaudio
+
+# Audio Separation
+audio-separator
+onnxruntime-gpu
+
+# Audio Sync (DTW)
+librosa
+fastdtw
+
+# Audio Enhancement (Resemble Enhance - Windows Fork)
+git+https://github.com/daswer123/resemble-enhance-windows.git
+
+# Resemble Enhance Dependencies
+transformers
+accelerate
+omegaconf
+pyloudnorm
+rich
+loguru
+pandas
+matplotlib
+tabulate
+
+# Testing & Quality
+pytest
+coverage
+flake8
+mypy
+anybadge

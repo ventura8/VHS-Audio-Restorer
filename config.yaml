@@ -1,0 +1,125 @@
+# ==============================================================================
+# AI Hybrid VHS Audio Restorer - System Configuration
+# ==============================================================================
+# This configuration file controls the global parameters for the audio restoration
+# pipeline. Modifying these values allows you to fine-tune the mixing levels,
+# file scanning behavior, and other runtime settings without altering the codebase.
+#
+# USAGE NOTE:
+# - Changes require a restart of the application to take effect.
+# - Ensure strict indentation is maintained (YAML standard).
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Audio Mix Levels
+# ------------------------------------------------------------------------------
+# These parameters control the relative volume of the separated stems in the
+# final stereo mix. The restoration pipeline separates audio into 'Vocals' and
+# 'Instrumental' (Music) tracks, enhances them individually, and then recombines
+# them.
+#
+# Type: Float
+# Range: 0.0 to Infinity
+#   - 0.0 : Mutes the stem completely.
+#   - 1.0 : Retains the original volume level of the extracted stem (Default).
+#   - >1.0: Boosts the volume (e.g., 1.2 = +20% volume).
+#
+# Recommendation:
+# Keep at 1.0 for a neutral restoration. Adjust 'vocal_mix_volume' to 1.1 or 1.2
+# if the vocals in your source VHS footage are buried or muddy.
+# ------------------------------------------------------------------------------
+vocal_mix_volume: 1.0
+background_mix_volume: 1.0
+
+# ------------------------------------------------------------------------------
+# AI Model Selection
+# ------------------------------------------------------------------------------
+# Specify the filenames of the AI models used for separation and denoising.
+# NOTE: These models must be valid models supported by 'audio-separator'.
+#
+# Common / Recommended Models:
+# 
+# 1. Vocals Models (for extracting speech/singing):
+#    - model_bs_roformer_ep_317_sdr_12.9755.ckpt  (State-of-the-art, resource heavy)
+#    - UVR-MDX-NET-Voc_FT.onnx                    (Balanced speed/quality)
+#    - kim_vocal_2.onnx                           (Good alternative)
+#
+# 2. Instrumental Models (for removing vocals):
+#    - UVR-MDX-NET-Inst_HQ_3.onnx                 (High fidelity instrumental)
+#    - UVR-MDX-NET-Inst_Main.onnx                 (Balanced)
+#    - UVR_MDXNET_KARA_2.onnx                     (Optimized for Karaoke/No Vocals)
+#
+# 3. Denoise Models (for removing hiss/noise):
+#    - UVR-DeNoise-Lite.pth                       (Safe, preserves details)
+#    - UVR-DeNoise.pth                            (Aggressive, may remove ambiance)
+# ------------------------------------------------------------------------------
+vocals_model: "model_bs_roformer_ep_317_sdr_12.9755.ckpt"
+background_model: "UVR-MDX-NET-Inst_HQ_3.onnx"
+denoise_model: "UVR-DeNoise-Lite.pth"
+
+# ------------------------------------------------------------------------------
+# Enhancement Settings (Resemble-Enhance)
+# ------------------------------------------------------------------------------
+# Controls the quality and behavior of the vocal enhancement stage.
+#
+# enhance_nfe (Number of Function Evaluations):
+#   - Higher values (e.g., 128) = Better quality, slower processing.
+#   - Lower values (e.g., 64)   = Faster processing, slightly lower fidelity.
+#
+# enhance_tau (Temperature/Scale):
+#   - Controls the dynamic range/aggressiveness of the enhancement.
+#   - Default: 0.5 (Balanced).
+# ------------------------------------------------------------------------------
+enhance_nfe: 64
+enhance_tau: 0.5
+
+# ------------------------------------------------------------------------------
+# Synchronization Settings
+# ------------------------------------------------------------------------------
+# Controls how the processed audio stems are aligned with the original source.
+#
+# sync_method:
+#   - 'shift': Calculated global offset (Cross-Correlation). Fast, default.
+#   - 'dtw'  : Dynamic Time Warping. Corrects variable speed/drift. Slower.
+#
+# dtw_resolution:
+#   - Resolution (in Hz) for DTW analysis. 
+#   - 50 Hz is the sweet spot (20ms precision, ~5-10s processing).
+# ------------------------------------------------------------------------------
+sync_method: "shift"
+dtw_resolution: 25
+
+# ------------------------------------------------------------------------------
+# Processing Mode
+# ------------------------------------------------------------------------------
+# Controls the complexity of the restoration pipeline.
+#
+# process_mode:
+#   - 'hybrid'       : Full separation + vocal enhance + background denoise. (Default)
+#   - 'denoise_only' : Denoise full audio + Sync. No enhancement/separation.
+#                      Faster, preserves original mix balance perfectly.
+# ------------------------------------------------------------------------------
+process_mode: "hybrid"
+
+# ------------------------------------------------------------------------------
+# Supported Video Extensions
+# ------------------------------------------------------------------------------
+# The application defines a whitelist of video file extensions to scan for within
+# the 'input/' directory. Files not matching these extensions will be ignored.
+#
+# Format: List of strings (must include the leading dot, e.g., '.mp4').
+# Case Sensitivity: The scanner is case-insensitive (accepts .MP4 and .mp4).
+# ------------------------------------------------------------------------------
+extensions:
+  - .mp4
+  - .mkv
+  - .avi
+  - .mov
+
+# ------------------------------------------------------------------------------
+# DEBUGGING
+# ------------------------------------------------------------------------------
+# debug_logging:
+#   - false: Standard output (Recommended).
+#   - true:  Detailed terminal logs for troubleshooting.
+debug_logging: false
