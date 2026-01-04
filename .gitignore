@@ -1,0 +1,74 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# --- Virtual Environments ---
+venv/
+.venv/
+env/
+.env
+
+# --- IDE Settings ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Project Specific (Data & Output) ---
+input/
+output/
+processed/
+temp_work/
+temp_ffmpeg/
+
+# --- Logs & Temporary Files ---
+*.log
+session_log.txt
+temp_common.txt
+.DS_Store
+*.tmp
+*.bak
+help*.txt
+resemble_help*.txt
+
+# --- Models & Dependencies ---
+*.ckpt
+*.pth
+*.onnx
+*.safetensors
+ffmpeg.zip
+ffmpeg/
+
+# --- Artifacts ---
+start.bat
+start_workflow.bat
+
+# --- Testing & Coverage ---
+.pytest_cache/
+.coverage
+coverage.xml
+coverage.json
+htmlcov/
+.mypy_cache/
+nosetests.xml
+coverage_out.txt
