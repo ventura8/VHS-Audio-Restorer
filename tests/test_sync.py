@@ -1,6 +1,5 @@
 import sys
 from unittest.mock import MagicMock, patch
-import pytest
 import numpy as np
 from pathlib import Path
 import modules.sync
@@ -188,14 +187,20 @@ def test_warp_aligned_audio_cpu(mock_save, mock_map, tmp_path):
     assert mock_save.called
 
 
-@patch("fastdtw.fastdtw", create=True)
-def test_run_fastdtw_chunk(mock_fastdtw):
+def test_run_fastdtw_chunk():
     """Test fastdtw worker function directly."""
-    # Mock fastdtw return
-    mock_fastdtw.return_value = (0, [(0, 0), (1, 1)])
+    # The worker function imports fastdtw internally.
+    # We must patch the usage of the imported module.
+    # Since we can't easily patch an import inside a function from outside without
+    # complex sys.modules hacks, we'll patch sys.modules dictionary for 'fastdtw'.
+    mock_fastdtw_module = MagicMock()
+    mock_fastdtw_module.fastdtw.return_value = (0, [(0, 0), (1, 1)])
 
-    args = (np.zeros(10), np.zeros(10), 10)
-    path = modules.sync._run_fastdtw_chunk(args)
+    with patch.dict("sys.modules", {"fastdtw": mock_fastdtw_module}):
+        # fastdtw expects 1D arrays if checking simple distance, or 2D if features.
+        # The actual implementation passes features with shape (Frames, 12).
+        args = (np.zeros((10, 12)), np.zeros((10, 12)), 10)
+        path = modules.sync._run_fastdtw_chunk(args)
 
     assert path == [(0, 0), (1, 1)]
 

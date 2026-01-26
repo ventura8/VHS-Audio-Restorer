@@ -20,13 +20,17 @@ This project uses a hybrid AI approach to separate, clean, and remix audio:
 
 1.  **Separation**: Uses `audio-separator` with the **BS-Roformer-Viperx-1297** model to split audio into Vocals and Background. The **Lossless Background** method (Original - Vocals) ensures ambient sounds like birds and nature are preserved 100%. Outputs are explicitly named `(Background)` to avoid confusion.
 2.  **Vocal Enhancement**: Runs **Resemble-Enhance** on the vocal track to remove muffle/hiss, restore high frequencies, and improve clarity.
-3.  **Background Denoising**: Runs `audio-separator` with the **UVR-DeNoise-Lite** model on the background track to gently remove tape hiss while preserving the full dynamic range of nature/ambient sounds.
+3.  **Background Denoising**: Runs the **UVR-DeNoise-Lite** model on the background track to gently remove tape hiss while preserving the full dynamic range of nature/ambient sounds.
 4.  **Smart Sync**: Corrects timing drift (wow/flutter) using two methods:
     - `shift` (Default): Global delay correction (Cross-Correlation). Glitch-free & Fast.
     - `dtw`: Dynamic Time Warping. Corrects variable drift (wow/flutter).
-    *   **Hybrid GPU/CPU Engine**: Calculates the massive Distance Matrix on **NVIDIA RTX GPUs** (via PyTorch) and aligns paths on the CPU for maximum performance.
-    *   **High Precision**: Defaults to 100Hz analysis (10ms accuracy) or 40Hz (25ms).
+    *   **Hybrid GPU Engine**: Calculates the distance matrix on **NVIDIA GPUs** (via PyTorch) and aligns paths for maximum performance.
 5.  **Mixing**: Recombines the clean vocals and denoised background using **FFmpeg** for a balanced, high-fidelity **32-bit PCM** output.
+
+### 🚀 Smart AI Engine
+- **Hybrid GPU Support**: Automatically prioritizes high-performance NVIDIA GPUs over Intel/integrated graphics. Ideal for laptops with dual GPUs.
+- **Python API Integration**: Uses a direct Python interface for all AI models (BS-Roformer, UVR-DeNoise), ensuring better reliability and driver stability than command-line calling.
+- **Dynamic Batching**: Automatically scales AI batch sizes based on detected VRAM to prevent OOM (Out-of-Memory) errors.
 
 ### ✨ Key Features
 - **Robust Resume**: Automatically detects existing output files for every step. If you crash or stop the script, simply run it again—it will skip all finished work and resume instantly where it left off.
@@ -80,10 +84,9 @@ style Mix fill:none,stroke:#44474E,stroke-width:1.5px,opacity:0.8
 The installer handles everything, ensuring compatibility with modern hardware:
 - **Python 3.10+** (in a local venv)
 - **FFmpeg 6.1+** (Full Portable Build included & configured)
-- **PyTorch 2.x Nightly** (Required for RTX 50-series/Sm_120 support)
-- **Audio-Separator** (BS-Roformer & UVR-DeNoise models)
-- **Resemble-Enhance** (Windows-Patched for vocal restoration)
-- **Runtime Patcher**: Automatically fixes `torchaudio` incompatibility and `deepspeed` crashes on Windows.
+- **NVIDIA CUDA Toolkit (Self-Contained)**: The installer automatically pulls technical libraries (`CUDNN`, `CUBLAS`) from PyPI, so you don't need a system-wide CUDA installation.
+- **AI Models**: BS-Roformer & UVR-DeNoise-Lite.
+- **Runtime Patcher**: Automatically fixes `torchaudio` and `deepspeed` issues on Windows, and injects hardware DLLs into the process environment.
 
 ## Hardware Auto-Detection Logic
 
@@ -91,10 +94,9 @@ The script automatically scales performance based on your GPU VRAM:
 
 | Profile | VRAM | Example GPUs | Batch Size |
 | :--- | :--- | :--- | :--- |
-| **EXTREME** | ≥ 24 GB | RTX 5090 / A6000 | 32 (+ Parallel Chains) |
-| **ULTRA** | ≥ 22 GB | RTX 3090 / 4090 | 16 (+ Parallel Chains) |
-| **HIGH** | ≥ 15 GB | RTX 4080 / 5080 | 8 |
-| **MID** | ≥ 10 GB | RTX 3080 / 4070 | 4 |
+| **EXTREME** | ≥ 24 GB | RTX 3090 / 4090 / 5090 | 32 |
+| **HIGH** | ≥ 15 GB | RTX 3080 / 4080 / 5080 | 8 |
+| **MID** | ≥ 10 GB | RTX 3070 / 4070 | 4 |
 | **LOW** | < 10 GB | Entry Level / Older Cards | 1 |
 
 > [!TIP]
@@ -191,7 +193,8 @@ The project is organized into a modular package structure:
 - `restore_audio_hybrid.py`: Main entry point (calls `modules.processing`).
 
 ### Code Quality
-- **Linting**: `flake8` (max-line-length=127, max-complexity=15).
+- **Linting**: `flake8` (max-line-length=127, max-complexity=10).
+- **Formatting**: `autopep8` (aggressive).
 - **Type Checking**: `mypy`.
 - **Complexity**: Monitored with `radon`.
 

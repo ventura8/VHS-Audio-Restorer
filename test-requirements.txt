@@ -1,0 +1,13 @@
+pytest
+pytest-cov
+coverage
+flake8
+autopep8
+mypy
+anybadge
+radon
+# Core App Dependencies (Required for Imports)
+numpy
+scipy
+soundfile
+PyYAML

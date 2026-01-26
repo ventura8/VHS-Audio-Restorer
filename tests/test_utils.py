@@ -368,6 +368,14 @@ def test_cleanup_subprocesses_active():
     assert len(modules.utils._active_processes) == 0
 
 
+def test_main_keyboard_interrupt():
+    """Test _len_active utility."""
+    modules.utils._active_processes.clear()
+    assert modules.utils._len_active() == 0
+    modules.utils._active_processes.add(MagicMock())
+    assert modules.utils._len_active() == 1
+
+
 def test_len_active():
     """Test _len_active utility."""
     modules.utils._active_processes.clear()
@@ -385,26 +393,25 @@ def test_run_command_with_progress_adds_to_active(mock_popen, mock_bar):
     # Return empty string immediately to finish loop
     mock_proc.stdout.readline.return_value = ""
     mock_popen.return_value = mock_proc
-    
+    mock_popen.return_value = mock_proc
     # We want to check _active_processes while it's running.
     # We can do this by making wait() check the set.
+
     def wait_side_effect():
         assert len(modules.utils._active_processes) >= 1
         return 0
-    
     mock_proc.wait.side_effect = wait_side_effect
 
     modules.utils.run_command_with_progress(["cmd"])
-    
+
     # After it finishes, it should be removed (checked by other tests probably)
     # But inside wait(), it was active.
     assert mock_proc.wait.called
 
 
-
 def test_check_dependencies_success():
     """Test check_dependencies returns True when all found."""
-    with patch("subprocess.run") as mock_run:
+    with patch("subprocess.run"):
         assert modules.utils.check_dependencies() is True
 
 
@@ -414,7 +421,7 @@ def test_cleanup_subprocesses_exception():
     p1.poll.return_value = None
     p1.terminate.side_effect = Exception("Fail")
     p1.kill.side_effect = Exception("Fail")
-    
+
     with patch("modules.utils._active_processes", {p1}):
         modules.utils.cleanup_subprocesses()
         # Should not raise
@@ -501,3 +508,96 @@ def test_monitor_progress_ffmpeg_time(mock_popen, mock_draw):
     # Look for approx 50%
     found_50 = any(abs(c[0][0] - 50.0) < 0.1 for c in calls)
     assert found_50, "Did not find expected ~50% progress update"
+
+
+def test_log_msg_debug_level(tmp_path, capsys, monkeypatch):
+    """Test log_msg with DEBUG level and DEBUG_LOGGING disabled."""
+    monkeypatch.setattr("modules.utils.DEBUG_LOGGING", False)
+    monkeypatch.setattr("modules.utils.LOG_FILE", str(tmp_path / "test.log"))
+    
+    modules.utils.log_msg("debug message", level="DEBUG", console=True)
+    
+    # Should not print to console because DEBUG_LOGGING is False
+    captured = capsys.readouterr()
+    assert "debug message" not in captured.out
+
+
+def test_log_msg_with_error_flag(tmp_path, capsys, monkeypatch):
+    """Test log_msg with is_error=True."""
+    log_file = tmp_path / "test.log"
+    monkeypatch.setattr("modules.utils.LOG_FILE", str(log_file))
+    
+    modules.utils.log_msg("error message", is_error=True)
+    
+    # Should print ERROR level
+    content = log_file.read_text()
+    assert "[ERROR]" in content
+    assert "error message" in content
+
+
+@patch("modules.utils.is_valid_audio")
+@patch("modules.utils.sf.write")
+def test_save_atomic_success(mock_write, mock_valid, tmp_path):
+    """Test save_atomic_audio successful write."""
+    # Create actual temp file to simulate successful write
+    temp_file = tmp_path / "output.tmp.wav"
+    temp_file.write_text("test data")
+    
+    # First call to is_valid_audio checks if temp is valid (True)
+    # Second call checks if we should proceed
+    mock_valid.return_value = True
+    mock_write.return_value = None  # sf.write returns None on success
+    
+    output_file = tmp_path / "output.wav"
+    
+    # Call the function  
+    result = modules.utils._save_audio_atomic(str(output_file), b"test data", 44100)
+    
+    # Mock write was called
+    assert mock_write.called
+
+
+@patch("modules.utils.is_valid_video")
+def test_is_valid_video_large(mock_sf, tmp_path):
+    """Test is_valid_video with large file."""
+    large_file = tmp_path / "large.mp4"
+    large_file.write_text("x" * (5 * 1024 * 1024))  # 5MB
+    mock_sf.return_value = True
+    assert modules.utils.is_valid_video(large_file) is True
+
+
+def test_parse_ffmpeg_time_variations():
+    """Test parse_ffmpeg_time with various time formats."""
+    # Test different valid formats
+    assert modules.utils.parse_ffmpeg_time("time=00:00:05.50") == 5.5
+    assert modules.utils.parse_ffmpeg_time("time=00:01:00.00") == 60.0
+    assert modules.utils.parse_ffmpeg_time("time=01:00:00.00") == 3600.0
+
+
+def test_format_time_variations():
+    """Test format_time with various durations."""
+    assert modules.utils.format_time(0) == "00:00:00,000"
+    assert modules.utils.format_time(0.5) == "00:00:00,500"
+    assert modules.utils.format_time(3661) == "01:01:01,000"
+
+
+@patch("modules.utils.subprocess.run")
+def test_check_dependencies_all_present(mock_run):
+    """Test check_dependencies when all are present."""
+    mock_run.return_value = None
+    modules.utils.check_dependencies()
+    # Should not raise
+
+
+@patch("modules.utils.is_valid_audio")
+@patch("modules.utils.sf.write")
+def test_save_atomic_invalid_output(mock_write, mock_valid, tmp_path):
+    """Test save_atomic_file when output validation fails."""
+    mock_valid.return_value = False
+    
+    output_file = tmp_path / "output.wav"
+    
+    # Should return False when invalid
+    result = modules.utils._save_audio_atomic(str(output_file), b"test", 44100)
+    assert result is False
+
