@@ -620,8 +620,13 @@ def test_separate_stems_exception_handling(mock_retry, mock_valid, tmp_path):
     mock_retry.return_value = True
     
     # When no output files are created, should raise an exception
-    with pytest.raises(Exception, match="Separation completed"):
-        modules.processing._separate_stems_step(audio, out_dir)
+    mock_sep_module = MagicMock()
+    mock_sep_instance = mock_sep_module.Separator.return_value
+    mock_sep_instance.separate.return_value = ["dummy.wav"]
+
+    with patch.dict("sys.modules", {"audio_separator.separator": mock_sep_module}):
+        with pytest.raises(Exception, match="Separation completed"):
+            modules.processing._separate_stems_step(audio, out_dir)
 
 
 @patch("modules.processing.run_command_with_progress")  
