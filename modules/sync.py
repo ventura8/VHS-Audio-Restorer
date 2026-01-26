@@ -25,8 +25,8 @@ try:
     import fastdtw
 except ImportError as e:
     DTW_IMPORT_ERROR = str(e)
-    librosa = None  # type: ignore[no-redef]
-    fastdtw = None  # type: ignore[no-redef]
+    librosa = None  # type: ignore[assignment]
+    fastdtw = None  # type: ignore[assignment]
 else:
     DTW_IMPORT_ERROR = None
 

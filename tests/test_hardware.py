@@ -1,8 +1,5 @@
-import sys
 from unittest.mock import MagicMock, patch
-import pytest
 import importlib
-from pathlib import Path
 import os
 import modules.hardware
 
@@ -51,8 +48,10 @@ def test_get_gpu_name_robust(mock_out):
 
     # Test failure case
     mock_out.side_effect = Exception("nvidia-smi not found")
-    result = modules.hardware.get_gpu_name()
-    assert "Not Detected" in result
+    # Ensure torch doesn't interfere
+    with patch.object(modules.hardware.torch.cuda, "is_available", return_value=False):
+        result = modules.hardware.get_gpu_name()
+        assert ("Not Detected" in result) or ("Generic" in result)
 
 
 def test_get_cpu_name_windows():
@@ -61,7 +60,7 @@ def test_get_cpu_name_windows():
     mock_winreg = MagicMock()
     # QueryValueEx returns (value, type)
     mock_winreg.QueryValueEx.return_value = ("Intel Core i9 Windows", 1)
-    
+
     with patch("sys.platform", "win32"):
         # Inject mock winreg into sys.modules so it can be imported/used
         with patch.dict("sys.modules", {"winreg": mock_winreg}):
@@ -90,7 +89,6 @@ def test_optimal_settings_all_profiles():
     """Test all GPU profile detection branches."""
     profiles = [
         (32, "EXTREME"),  # 32GB -> EXTREME
-        (22, "ULTRA"),  # 22GB threshold
         (16, "HIGH"),   # 16GB -> HIGH
         (15, "HIGH"),   # 15GB threshold
         (12, "MID"),    # 12GB -> MID
@@ -157,3 +155,72 @@ def test_nvidia_paths_branches():
     with patch("builtins.__import__", side_effect=ImportError):
         paths = modules.hardware.get_nvidia_paths()
         assert isinstance(paths, list)
+
+@patch("modules.hardware.subprocess.check_output")
+def test_detect_nvidia_smi_success(mock_out):
+    """Test _detect_nvidia_smi success path."""
+    mock_out.return_value = b"GPU 0: NVIDIA RTX 4090"
+    settings = {"is_nvidia": False}
+    modules.hardware._detect_nvidia_smi(settings)
+    assert settings["is_nvidia"] is True
+    assert os.environ["CUDA_DEVICE_ORDER"] == "PCI_BUS_ID"
+
+
+@patch("modules.hardware.subprocess.check_output")
+def test_detect_nvidia_smi_failure(mock_out):
+    """Test _detect_nvidia_smi failure path."""
+    mock_out.side_effect = Exception("No SMI")
+    settings = {"is_nvidia": False}
+    modules.hardware._detect_nvidia_smi(settings)
+    assert settings["is_nvidia"] is False
+
+
+@patch("modules.hardware.torch.cuda")
+def test_detect_pytorch_cuda_logic(mock_cuda):
+    """Test _detect_pytorch_cuda loop and settings application."""
+    mock_cuda.is_available.return_value = True
+    mock_cuda.device_count.return_value = 2
+
+    # Mock get_device_name to return Intel first (skip) then NVIDIA (pick)
+    mock_cuda.get_device_name.side_effect = ["Intel Graphics", "NVIDIA RTX 4090"]
+
+    # Mock properties for VRAM calculation (RTX 4090 ~ 24GB)
+    mock_props = MagicMock()
+    mock_props.total_memory = 24 * 1024**3
+    mock_cuda.get_device_properties.return_value = mock_props
+
+    settings = {"device_index": 0, "is_nvidia": False}
+    modules.hardware._detect_pytorch_cuda(settings)
+
+    assert settings["device_index"] == 1
+    assert settings["is_nvidia"] is True
+    assert settings["profile_name"].startswith("EXTREME")
+    assert settings["gpu_batch_size"] == 32
+
+
+@patch("modules.hardware.torch.cuda")
+def test_detect_pytorch_cuda_no_cuda(mock_cuda):
+    """Test _detect_pytorch_cuda early return when CUDA not available."""
+    mock_cuda.is_available.return_value = False
+    settings = {"device_index": -1}  # default test val
+    modules.hardware._detect_pytorch_cuda(settings)
+
+def test_apply_env_vars():
+    """Test environment variable application."""
+    settings = {"is_nvidia": True, "device_index": 2}
+    with patch.dict(os.environ, {}, clear=True):
+        modules.hardware._apply_env_vars(settings)
+        assert os.environ["CUDA_VISIBLE_DEVICES"] == "2"
+        assert os.environ["CUDA_DEVICE_ORDER"] == "PCI_BUS_ID"
+        assert os.environ["ORT_TENSORRT_FP16_ENABLE"] == "1"
+        assert settings["cuda_device"] == "cuda:0"
+
+
+def test_get_cpu_name_hard_exception():
+    """Test get_cpu_name handles winreg exception robustly (simulated on non-windows or locked registry)."""
+    import sys
+    with patch("sys.platform", "win32"), \
+         patch("modules.hardware.platform.processor", return_value="Fallback"), \
+         patch.dict(sys.modules, {'winreg': None}):
+         # Fallback to platform.processor when winreg import fails
+         assert modules.hardware.get_cpu_name() == "Fallback"

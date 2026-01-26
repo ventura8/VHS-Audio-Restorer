@@ -22,16 +22,27 @@ from .config import LOG_FILE, DEBUG_LOGGING, EXTS
 project_dir = Path(__file__).parent.parent.resolve()  # modules/..
 venv_scripts = project_dir / "venv" / "Scripts"
 
+# 1. Base Binary Paths
 FFMPEG_BIN = "ffmpeg"
 if (venv_scripts / "ffmpeg.exe").exists():
     FFMPEG_BIN = str(venv_scripts / "ffmpeg.exe")
-    current_path = os.environ.get("PATH", "")
-    if str(venv_scripts) not in current_path:
-        os.environ["PATH"] = str(venv_scripts) + os.pathsep + current_path
-elif venv_scripts.exists():
-    current_path = os.environ.get("PATH", "")
-    if str(venv_scripts) not in current_path:
-        os.environ["PATH"] = str(venv_scripts) + os.pathsep + current_path
+
+# 2. NVIDIA / CUDA Library Injection (Critical for Hybrid GPUs)
+from .hardware import get_nvidia_paths
+extra_paths = [str(venv_scripts)]
+extra_paths.extend(get_nvidia_paths())
+
+current_path = os.environ.get("PATH", "")
+path_list = current_path.split(os.pathsep)
+
+added_any = False
+for p in extra_paths:
+    if p and p not in path_list:
+        path_list.insert(0, p)
+        added_any = True
+
+if added_any:
+    os.environ["PATH"] = os.pathsep.join(path_list)
 
 _venv_scripts_missing = not venv_scripts.exists()
 
@@ -163,8 +174,9 @@ def is_valid_video(file_path):
     path = Path(file_path)
     if not path.exists():
         return False
-    # 1MB minimum to be considered a successful video write
-    if path.stat().st_size < 1024 * 1024:
+    # 10KB minimum to be considered a successful video write
+    # (Reduced from 1MB to support very short or low-bitrate SD clips)
+    if path.stat().st_size < 10240:
         return False
     return True
 

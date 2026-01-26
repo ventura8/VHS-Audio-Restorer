@@ -14,7 +14,9 @@ torchvision
 torchaudio
 
 # Audio Separation
-audio-separator
+audio-separator[gpu]
+nvidia-cudnn-cu12
+nvidia-cublas-cu12
 onnxruntime-gpu
 
 # Audio Sync (DTW)
@@ -35,9 +37,3 @@ pandas
 matplotlib
 tabulate
 
-# Testing & Quality
-pytest
-coverage
-flake8
-mypy
-anybadge

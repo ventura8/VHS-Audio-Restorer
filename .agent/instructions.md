@@ -6,10 +6,13 @@ This document provides technical guidance for AI agents and developers working o
 
 ### 1. Smart Fixes: Lint & Test Pass
 When fixing issues in a file, follow this order of operations in a single pass:
-- **Lint First**: Run `flake8` to identify issues.
-- **Auto-Fix**: ALWAYS run `autopep8 --in-place --aggressive --recursive <module/file>` to automatically resolve style and formatting issues.
-- **Manual Fix**: If lints remain after autopep8, fix them manually before addressing tests.
+- **Lint First**: Run `flake8 <file> --max-complexity=10 --max-line-length=127` to identify issues.
+- **Auto-Fix**: ALWAYS run `autopep8 --in-place --aggressive --max-line-length 127 <file>` to automatically resolve style and formatting issues.
+- **Manual Fix**: If lints remain after autopep8:
+    - Address complexity errors manually (refactor functions > 10).
+    - Fix remaining formatting issues.
 - **Tests Second**: Once lints pass, run tests (`pytest`).
+    - **Test Linting**: Ensure test files themselves pass `flake8` checks!
 - **Single Pass**: Aim to resolve both lint and test issues in the same iteration whenever possible.
 
 ### 2. Coverage & Badges
@@ -48,9 +51,12 @@ When fixing issues in a file, follow this order of operations in a single pass:
     - **Dynamic Radius**: `radius` for DTW must scale with resolution (e.g., `0.3 * Resolution`).
     - **Recommended Resolution**: 100Hz for high precision (lipsync), 40Hz for general speed correction.
 
-### 6. Runtime Patching
-- **Mechanism**: The project uses `apply_patches.py` to fix upstream library issues (e.g., `soundfile`, `deepspeed`) during runtime or installation.
-- **Maintenance**: Always verify patches still apply correctly after a dependency update (`pip install -U`).
+### 6. Hardware & GPU Acceleration
+- **Hybrid GPU Support**:
+    - **Masking**: The system uses `CUDA_VISIBLE_DEVICES` in `hardware.py` to hide the Integrated GPU (Intel) and force the application to use the primary NVIDIA GPU.
+    - **DLL Injection**: `utils.py` uses `get_nvidia_paths` from `hardware.py` to automatically inject CUDA libraries (CUDNN/CUBLAS from wheel packages) into the process `PATH`. This is critical for portable Windows installations to ensure GPU acceleration works without global driver modifications.
+- **Python API Usage**:
+    - Always use the `audio_separator.separator.Separator` Python class for separation and denoising. Avoid the CLI companion as it offers less control over DLL loading and device selection in hybrid environments.
 
 ### 7. Execution Modes
 - **Interactive**: Running without arguments or double-clicking `start.bat` triggers an interactive prompt for drag-and-drop or scanning the `input` folder.

@@ -50,8 +50,12 @@ temp_common.txt
 *.bak
 help*.txt
 resemble_help*.txt
+test_output*
+test_mix.wav
+debug_*.py
 
 # --- Models & Dependencies ---
+models/
 *.ckpt
 *.pth
 *.onnx

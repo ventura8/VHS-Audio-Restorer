@@ -2,6 +2,7 @@ import os
 import sys
 import platform
 import time
+import torch
 from pathlib import Path
 
 from .config import (
@@ -24,6 +25,15 @@ def _show_banner():
     """Prints the application banner and hardware info."""
     cpu_name = get_cpu_name()
     gpu_name = get_gpu_name()
+    
+    # Check torch backend
+    torch_backend = "CPU (Slow)"
+    if torch.cuda.is_available():
+        # Even if is_available is True, we check if we're actually on NVIDIA
+        if "NVIDIA" in gpu_name.upper() or "RTX" in gpu_name.upper():
+             torch_backend = "CUDA (NVIDIA Accelerated)"
+    elif hasattr(torch, 'xpu') and torch.xpu.is_available():
+        torch_backend = "XPU (Intel Accelerated)"
 
     print("=" * 60)
     print("   AI HYBRID VHS AUDIO RESTORER - v1.0.0")  # pragma: no cover
@@ -32,7 +42,8 @@ def _show_banner():
 
     print("[HARDWARE DETECTED]")
     print(f"   CPU : {os.cpu_count()} Logical Cores ({cpu_name})")
-    print(f"   GPU : {gpu_name} ({GPU_VRAM_GB:.2f} GB VRAM)\n")
+    print(f"   GPU : {gpu_name} ({GPU_VRAM_GB:.2f} GB VRAM)")
+    print(f"   AI Acceleration: {torch_backend}\n")
 
     print(f"[AUTO-TUNED SETTINGS -> Profile: {PROFILE_NAME}]")
     print("   Audio Precision : 32-bit Float (WAV)")
@@ -42,6 +53,10 @@ def _show_banner():
     print(f"   Mix Levels      : Vocals={VOCAL_MIX_VOL}, Background={BACKGROUND_MIX_VOL}")
     print(f"   Models          : {VOCALS_MODEL} / UVR-DeNoise")
     print(f"   Config Source   : {CONFIG_SOURCE}\n")
+
+    if "CPU" in torch_backend and "NVIDIA" in gpu_name.upper():
+        print("!! WARNING: NVIDIA GPU detected but Torch is using CPU.")
+        print("!! This will be EXTREMELY slow. Check your drivers/installation.\n")
 
     return cpu_name, gpu_name
 
